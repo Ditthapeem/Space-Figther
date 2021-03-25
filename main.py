@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import tkinter as tk
 
-from gamelib import Sprite, GameApp, Text, KeyboardHandler
+from gamelib import Sprite, GameApp, Text, KeyboardHandler, GameCanvasElement
 
 from consts import *
 from elements import Ship, Bullet, Enemy
@@ -111,25 +111,6 @@ class SpaceGame(GameApp):
 
     def bullet_count(self):
         return len(self.bullets)
-
-    def bomb(self):
-        if self.bomb_text.value == BOMB_FULL_POWER:
-            self.bomb_text.value = 0
-
-            self.bomb_canvas_id = self.canvas.create_oval(
-                self.ship.x - BOMB_RADIUS, 
-                self.ship.y - BOMB_RADIUS,
-                self.ship.x + BOMB_RADIUS, 
-                self.ship.y + BOMB_RADIUS
-            )
-
-            self.after(200, lambda: self.canvas.delete(self.bomb_canvas_id))
-
-            for e in self.enemies:
-                if self.ship.distance_to(e) <= BOMB_RADIUS:
-                    e.to_be_deleted = True
-
-            self.update_bomb_power()
 
     # def update_score_text(self):
     #     self.score_text.set_text('Score: %d' % self.score)
@@ -276,7 +257,7 @@ class GameKeyboardHandler(KeyboardHandler):
 class BombKeyPressedHandler(GameKeyboardHandler):
     def handle(self, event):
         if event.char.upper() == 'Z':
-            self.game_app.bomb()
+            self.game_app.bomb = Bomb(self.game_app, self.game_app.bomb_text, self.ship.x, self.ship.y)
         else:
             super().handle(event)
 
@@ -289,8 +270,8 @@ class ShipMovementKeyPressedHandler(GameKeyboardHandler):
             self.ship.start_turn('RIGHT')
         elif event.char == ' ':
             self.ship.fire()
-        elif event.char.upper() == 'Z':
-            self.bomb()
+        # elif event.char.upper() == 'Z':
+        #     self.bomb = Bomb(self, self.ship.x, self.ship.y)
 
 
 class ShipMovementKeyReleasedHandler(GameKeyboardHandler):
@@ -299,6 +280,41 @@ class ShipMovementKeyReleasedHandler(GameKeyboardHandler):
             self.ship.stop_turn('LEFT')
         elif event.keysym == 'Right':
             self.ship.stop_turn('RIGHT')
+
+
+class Bomb(GameCanvasElement):
+    def __init__(self, game_app,bomb_text , x=0, y=0):
+        super().__init__(game_app, x, y)
+        self.game = game_app
+        self.bomb_text = bomb_text
+        self.x = x
+        self.y = y
+        self.bomb()
+
+    def bomb(self):
+        if self.bomb_text.value == BOMB_FULL_POWER:
+            self.bomb_text.value = 0
+            self.draw_bomb()
+            self.destroy_bomb()
+            self.destroy_ship()
+            self.game.update_bomb_power()
+
+    def destroy_bomb(self):
+        self.game.after(200, lambda: self.canvas.delete(self.bomb_canvas_id))
+
+    def draw_bomb(self):
+        self.bomb_canvas_id = self.canvas.create_oval(
+                self.x - BOMB_RADIUS,
+                self.y - BOMB_RADIUS,
+                self.x + BOMB_RADIUS,
+                self.y + BOMB_RADIUS
+            )
+
+    def destroy_ship(self):
+        for e in self.game.enemies:
+                if self.game.ship.distance_to(e) <= BOMB_RADIUS:
+                    e.to_be_deleted = True
+
 
 
 if __name__ == "__main__":
